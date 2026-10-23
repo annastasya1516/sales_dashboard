@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales Dashboard 2023</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .filter-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 0.85rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      padding: 0.45rem 2rem 0.45rem 0.75rem;
+      font-size: 0.8125rem;
+      color: #374151;
+      background-color: #f9fafb;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      width: 100%;
+    }
+    .filter-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+    .kpi-card  { background:#fff; border:1px solid #f1f3f5; border-radius:1rem; padding:1.25rem 1.5rem; box-shadow:0 1px 4px rgba(0,0,0,.05); transition:transform .18s,box-shadow .18s; }
+    .kpi-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,.08); }
+    .kpi-label { font-size:.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; margin-bottom:.4rem; }
+    .kpi-value { font-size:1.75rem; font-weight:700; line-height:1.2; letter-spacing:-.02em; }
+    .kpi-sub   { font-size:.7rem; color:#9ca3af; margin-top:.25rem; }
+    .chart-card { background:#fff; border:1px solid #f1f3f5; border-radius:1rem; padding:1.25rem 1.5rem 1rem; box-shadow:0 1px 4px rgba(0,0,0,.05); transition:box-shadow .18s; }
+    .chart-card:hover { box-shadow:0 4px 14px rgba(0,0,0,.08); }
+    .chart-title { font-size:.8125rem; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:.04em; margin-bottom:.875rem; }
+    .chart-wrapper    { position:relative; height:280px; }
+    .chart-wrapper-sm { position:relative; height:220px; }
+    @media(max-width:640px){
+      .kpi-value { font-size:1.3rem; }
+      .chart-wrapper { height:210px; }
+      .chart-wrapper-sm { height:180px; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen" style="font-family:-apple-system,'Segoe UI',system-ui,sans-serif">
+
+  <!-- HEADER -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-screen-xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div>
+        <h1 class="text-xl font-bold text-blue-700 tracking-tight">&#128202; Sales Dashboard</h1>
+        <p class="text-xs text-gray-500 mt-0.5">Fiscal Year 2023</p>
+      </div>
+      <span id="last-updated" class="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">Loading&#8230;</span>
+    </div>
+  </header>
+
+  <main class="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- FILTERS -->
+    <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Filters</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-gray-500">Region</label>
+          <select id="filter-region" class="filter-select"><option value="all">All Regions</option></select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-gray-500">Product Category</label>
+          <select id="filter-category" class="filter-select"><option value="all">All Categories</option></select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-gray-500">Customer Type</label>
+          <select id="filter-customer" class="filter-select"><option value="all">All Customers</option></select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-gray-500">Sales Channel</label>
+          <select id="filter-channel" class="filter-select"><option value="all">All Channels</option></select>
+        </div>
+      </div>
+      <div class="mt-3 text-right">
+        <button id="btn-reset" class="text-xs text-blue-600 font-medium hover:underline">&#8635; Reset Filters</button>
+      </div>
+    </section>
+
+    <!-- KPI CARDS -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="kpi-card"><p class="kpi-label">Total Revenue</p><p id="kpi-revenue" class="kpi-value" style="color:#3b82f6">&#8212;</p><p class="kpi-sub">Sum of Sales Amount</p></div>
+      <div class="kpi-card"><p class="kpi-label">Total Transactions</p><p id="kpi-transactions" class="kpi-value" style="color:#7c3aed">&#8212;</p><p class="kpi-sub">Number of Records</p></div>
+      <div class="kpi-card"><p class="kpi-label">Total Qty Sold</p><p id="kpi-quantity" class="kpi-value" style="color:#10b981">&#8212;</p><p class="kpi-sub">Sum of Quantity Sold</p></div>
+      <div class="kpi-card"><p class="kpi-label">Avg Discount</p><p id="kpi-discount" class="kpi-value" style="color:#f97316">&#8212;</p><p class="kpi-sub">Average Discount Rate</p></div>
+    </div>
+
+    <!-- ROW 1 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="chart-card lg:col-span-2"><p class="chart-title">Sales Trend (Monthly)</p><div class="chart-wrapper"><canvas id="chart-trend"></canvas></div></div>
+      <div class="chart-card"><p class="chart-title">Revenue per Region</p><div class="chart-wrapper"><canvas id="chart-region"></canvas></div></div>
+    </div>
+
+    <!-- ROW 2 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="chart-card"><p class="chart-title">Revenue per Product Category</p><div class="chart-wrapper"><canvas id="chart-category"></canvas></div></div>
+      <div class="chart-card"><p class="chart-title">Sales per Sales Representative</p><div class="chart-wrapper"><canvas id="chart-salesrep"></canvas></div></div>
+    </div>
+
+    <!-- ROW 3 -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="chart-card"><p class="chart-title">Customer Type Distribution</p><div class="chart-wrapper-sm"><canvas id="chart-customer"></canvas></div></div>
+      <div class="chart-card"><p class="chart-title">Payment Method Usage</p><div class="chart-wrapper-sm"><canvas id="chart-payment"></canvas></div></div>
+      <div class="chart-card"><p class="chart-title">Sales Channel Distribution</p><div class="chart-wrapper-sm"><canvas id="chart-channel"></canvas></div></div>
+    </div>
+
+    <!-- ROW 4 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="chart-card"><p class="chart-title">Discount vs Sales Amount (Scatter)</p><div class="chart-wrapper"><canvas id="chart-scatter"></canvas></div></div>
+      <div class="chart-card"><p class="chart-title">Quantity Sold per Category</p><div class="chart-wrapper"><canvas id="chart-qty-category"></canvas></div></div>
+    </div>
+
+    <!-- ROW 5 -->
+    <div class="chart-card"><p class="chart-title">Top 10 Highest Sales Transactions</p><div class="chart-wrapper"><canvas id="chart-top10"></canvas></div></div>
+
+  </main>
+
+  <footer class="text-center py-6 border-t border-gray-100 mt-4" style="font-size:.75rem;color:#9ca3af">
+    Sales Dashboard 2023 &mdash; 200_sales_data.csv
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+  // ── DATA — JS objects, no CSV parsing needed ─────────────────────
+  const RAW = [
+    {id:1088,date:"2023-11-16",rep:"Eve",region:"North",sales:8518.45,qty:13,cat:"Furniture",cust:"New",disc:0.23,pay:"Bank Transfer",ch:"Retail"},
+    {id:1021,date:"2023-11-27",rep:"Alice",region:"South",sales:6483.84,qty:31,cat:"Furniture",cust:"Returning",disc:0.24,pay:"Bank Transfer",ch:"Online"},
+    {id:1076,date:"2023-12-16",rep:"Eve",region:"East",sales:7160.75,qty:30,cat:"Clothing",cust:"New",disc:0.2,pay:"Credit Card",ch:"Retail"},
+    {id:1091,date:"2023-09-04",rep:"Charlie",region:"South",sales:675.11,qty:44,cat:"Food",cust:"Returning",disc:0.06,pay:"Bank Transfer",ch:"Retail"},
+    {id:1047,date:"2023-08-08",rep:"David",region:"North",sales:1331.25,qty:33,cat:"Electronics",cust:"Returning",disc:0.15,pay:"Credit Card",ch:"Online"},
+    {id:1003,date:"2023-04-28",rep:"Charlie",region:"South",sales:5991.8,qty:27,cat:"Furniture",cust:"Returning",disc:0.04,pay:"Cash",ch:"Online"},
+    {id:1014,date:"2023-11-22",rep:"David",region:"West",sales:9762.54,qty:17,cat:"Food",cust:"New",disc:0.2,pay:"Bank Transfer",ch:"Online"},
+    {id:1009,date:"2023-04-28",rep:"Alice",region:"North",sales:1342.95,qty:33,cat:"Clothing",cust:"New",disc:0.05,pay:"Credit Card",ch:"Online"},
+    {id:1084,date:"2023-08-13",rep:"Alice",region:"West",sales:1290.05,qty:21,cat:"Furniture",cust:"New",disc:0.08,pay:"Cash",ch:"Online"},
+    {id:1092,date:"2023-01-20",rep:"Charlie",region:"East",sales:2729.27,qty:40,cat:"Electronics",cust:"New",disc:0.2,pay:"Bank Transfer",ch:"Retail"},
+    {id:1044,date:"2023-02-16",rep:"David",region:"South",sales:7754.1,qty:22,cat:"Food",cust:"Returning",disc:0.22,pay:"Bank Transfer",ch:"Retail"},
+    {id:1035,date:"2023-05-22",rep:"Alice",region:"South",sales:3780.22,qty:45,cat:"Food",cust:"New",disc:0.15,pay:"Credit Card",ch:"Retail"},
+    {id:1078,date:"2023-11-16",rep:"David",region:"East",sales:113.4,qty:8,cat:"Furniture",cust:"Returning",disc:0.03,pay:"Bank Transfer",ch:"Online"},
+    {id:1050,date:"2023-05-19",rep:"Charlie",region:"East",sales:9744.52,qty:35,cat:"Clothing",cust:"Returning",disc:0.09,pay:"Bank Transfer",ch:"Retail"},
+    {id:1002,date:"2023-11-29",rep:"David",region:"North",sales:333.59,qty:24,cat:"Furniture",cust:"New",disc:0.09,pay:"Credit Card",ch:"Retail"},
+    {id:1054,date:"2023-01-10",rep:"Eve",region:"South",sales:4634.16,qty:40,cat:"Furniture",cust:"Returning",disc:0.08,pay:"Cash",ch:"Online"},
+    {id:1063,date:"2023-05-18",rep:"Bob",region:"West",sales:3098.87,qty:39,cat:"Food",cust:"Returning",disc:0.21,pay:"Cash",ch:"Retail"},
+    {id:1014,date:"2023-04-11",rep:"Alice",region:"South",sales:9582.12,qty:38,cat:"Food",cust:"Returning",disc:0.01,pay:"Credit Card",ch:"Online"},
+    {id:1048,date:"2023-09-30",rep:"Charlie",region:"North",sales:7873.38,qty:4,cat:"Furniture",cust:"New",disc:0.22,pay:"Credit Card",ch:"Retail"},
+    {id:1080,date:"2023-08-24",rep:"Bob",region:"West",sales:1493.95,qty:17,cat:"Furniture",cust:"Returning",disc:0.01,pay:"Cash",ch:"Retail"},
+    {id:1089,date:"2023-01-01",rep:"Charlie",region:"North",sales:8130.13,qty:35,cat:"Clothing",cust:"New",disc:0.14,pay:"Credit Card",ch:"Online"},
+    {id:1065,date:"2023-11-24",rep:"Bob",region:"East",sales:9183.11,qty:18,cat:"Food",cust:"New",disc:0.02,pay:"Bank Transfer",ch:"Retail"},
+    {id:1009,date:"2023-08-17",rep:"Bob",region:"West",sales:8912.4,qty:33,cat:"Clothing",cust:"Returning",disc:0.11,pay:"Cash",ch:"Online"},
+    {id:1035,date:"2023-03-03",rep:"Bob",region:"West",sales:2494.74,qty:47,cat:"Electronics",cust:"New",disc:0.06,pay:"Bank Transfer",ch:"Online"},
+    {id:1099,date:"2023-03-04",rep:"David",region:"East",sales:7952.11,qty:10,cat:"Furniture",cust:"New",disc:0.0,pay:"Credit Card",ch:"Online"},
+    {id:1044,date:"2023-05-23",rep:"Bob",region:"West",sales:8552.47,qty:19,cat:"Food",cust:"New",disc:0.01,pay:"Bank Transfer",ch:"Online"},
+    {id:1091,date:"2023-05-25",rep:"Alice",region:"North",sales:9610.21,qty:24,cat:"Clothing",cust:"New",disc:0.23,pay:"Bank Transfer",ch:"Retail"},
+    {id:1063,date:"2023-10-16",rep:"Charlie",region:"North",sales:9775.35,qty:4,cat:"Clothing",cust:"New",disc:0.3,pay:"Bank Transfer",ch:"Retail"},
+    {id:1036,date:"2023-04-28",rep:"Charlie",region:"West",sales:7739.11,qty:25,cat:"Furniture",cust:"Returning",disc:0.09,pay:"Bank Transfer",ch:"Online"},
+    {id:1028,date:"2023-08-04",rep:"Alice",region:"North",sales:2363.9,qty:38,cat:"Clothing",cust:"New",disc:0.26,pay:"Cash",ch:"Online"},
+    {id:1084,date:"2023-06-22",rep:"Eve",region:"North",sales:6658.1,qty:49,cat:"Furniture",cust:"Returning",disc:0.26,pay:"Credit Card",ch:"Online"},
+    {id:1072,date:"2023-12-26",rep:"Charlie",region:"North",sales:3635.5,qty:23,cat:"Furniture",cust:"New",disc:0.12,pay:"Bank Transfer",ch:"Online"},
+    {id:1027,date:"2023-02-07",rep:"Bob",region:"West",sales:7896.74,qty:3,cat:"Food",cust:"New",disc:0.15,pay:"Credit Card",ch:"Online"},
+    {id:1059,date:"2023-05-21",rep:"Alice",region:"North",sales:5108.98,qty:37,cat:"Electronics",cust:"Returning",disc:0.06,pay:"Cash",ch:"Retail"},
+    {id:1032,date:"2023-04-14",rep:"David",region:"North",sales:2286.44,qty:45,cat:"Clothing",cust:"New",disc:0.07,pay:"Cash",ch:"Retail"},
+    {id:1096,date:"2023-07-29",rep:"Charlie",region:"West",sales:485.41,qty:38,cat:"Electronics",cust:"Returning",disc:0.15,pay:"Credit Card",ch:"Online"},
+    {id:1062,date:"2023-11-12",rep:"Eve",region:"South",sales:8681.03,qty:9,cat:"Electronics",cust:"New",disc:0.15,pay:"Bank Transfer",ch:"Retail"},
+    {id:1052,date:"2023-12-22",rep:"Charlie",region:"West",sales:9509.55,qty:2,cat:"Furniture",cust:"Returning",disc:0.16,pay:"Bank Transfer",ch:"Online"},
+    {id:1002,date:"2023-10-20",rep:"David",region:"North",sales:5842.88,qty:30,cat:"Clothing",cust:"Returning",disc:0.1,pay:"Credit Card",ch:"Retail"},
+    {id:1081,date:"2023-04-16",rep:"Charlie",region:"West",sales:2896.71,qty:44,cat:"Electronics",cust:"New",disc:0.29,pay:"Credit Card",ch:"Online"},
+    {id:1090,date:"2023-07-01",rep:"David",region:"North",sales:2150.05,qty:31,cat:"Furniture",cust:"New",disc:0.06,pay:"Cash",ch:"Retail"},
+    {id:1070,date:"2023-01-01",rep:"Eve",region:"South",sales:783.18,qty:12,cat:"Furniture",cust:"Returning",disc:0.25,pay:"Bank Transfer",ch:"Retail"},
+    {id:1038,date:"2023-11-09",rep:"David",region:"East",sales:6966.82,qty:1,cat:"Food",cust:"Returning",disc:0.14,pay:"Credit Card",ch:"Online"},
+    {id:1098,date:"2023-10-18",rep:"Eve",region:"West",sales:1600.79,qty:21,cat:"Furniture",cust:"New",disc:0.18,pay:"Bank Transfer",ch:"Online"},
+    {id:1059,date:"2023-07-29",rep:"Bob",region:"South",sales:7678.91,qty:16,cat:"Furniture",cust:"Returning",disc:0.2,pay:"Credit Card",ch:"Retail"},
+    {id:1080,date:"2023-01-17",rep:"Bob",region:"South",sales:4224.0,qty:47,cat:"Furniture",cust:"Returning",disc:0.07,pay:"Bank Transfer",ch:"Online"},
+    {id:1020,date:"2023-09-08",rep:"Eve",region:"North",sales:9733.47,qty:26,cat:"Clothing",cust:"New",disc:0.01,pay:"Credit Card",ch:"Retail"},
+    {id:1059,date:"2023-06-28",rep:"Bob",region:"North",sales:2338.64,qty:13,cat:"Electronics",cust:"New",disc:0.19,pay:"Credit Card",ch:"Retail"},
+    {id:1036,date:"2023-07-01",rep:"Alice",region:"West",sales:3111.57,qty:17,cat:"Furniture",cust:"Returning",disc:0.1,pay:"Credit Card",ch:"Online"},
+    {id:1019,date:"2023-07-17",rep:"David",region:"South",sales:7320.51,qty:14,cat:"Clothing",cust:"New",disc:0.25,pay:"Credit Card",ch:"Retail"},
+    {id:1011,date:"2023-12-03",rep:"Bob",region:"East",sales:8186.12,qty:13,cat:"Electronics",cust:"Returning",disc:0.28,pay:"Cash",ch:"Online"},
+    {id:1057,date:"2023-12-27",rep:"Bob",region:"South",sales:3772.32,qty:31,cat:"Furniture",cust:"Returning",disc:0.19,pay:"Credit Card",ch:"Online"},
+    {id:1023,date:"2023-04-28",rep:"Charlie",region:"North",sales:9850.1,qty:5,cat:"Electronics",cust:"Returning",disc:0.22,pay:"Credit Card",ch:"Retail"},
+    {id:1031,date:"2023-12-08",rep:"David",region:"North",sales:7567.06,qty:22,cat:"Food",cust:"New",disc:0.2,pay:"Bank Transfer",ch:"Online"},
+    {id:1002,date:"2023-05-21",rep:"Charlie",region:"West",sales:7828.25,qty:26,cat:"Clothing",cust:"Returning",disc:0.28,pay:"Cash",ch:"Online"},
+    {id:1012,date:"2023-11-14",rep:"Eve",region:"North",sales:519.98,qty:6,cat:"Clothing",cust:"Returning",disc:0.3,pay:"Bank Transfer",ch:"Retail"},
+    {id:1037,date:"2023-06-07",rep:"Alice",region:"South",sales:6055.38,qty:4,cat:"Food",cust:"New",disc:0.24,pay:"Cash",ch:"Retail"},
+    {id:1009,date:"2023-11-01",rep:"Bob",region:"South",sales:7172.8,qty:14,cat:"Food",cust:"Returning",disc:0.07,pay:"Credit Card",ch:"Retail"},
+    {id:1019,date:"2023-05-24",rep:"Eve",region:"South",sales:1114.91,qty:13,cat:"Food",cust:"New",disc:0.09,pay:"Cash",ch:"Online"},
+    {id:1048,date:"2023-01-19",rep:"Bob",region:"West",sales:5187.16,qty:7,cat:"Clothing",cust:"Returning",disc:0.05,pay:"Credit Card",ch:"Retail"},
+    {id:1075,date:"2023-08-10",rep:"Charlie",region:"North",sales:9217.85,qty:17,cat:"Electronics",cust:"Returning",disc:0.24,pay:"Bank Transfer",ch:"Retail"},
+    {id:1036,date:"2023-11-15",rep:"Bob",region:"West",sales:7316.91,qty:19,cat:"Furniture",cust:"Returning",disc:0.09,pay:"Credit Card",ch:"Retail"},
+    {id:1038,date:"2023-05-12",rep:"Bob",region:"South",sales:8630.74,qty:20,cat:"Clothing",cust:"New",disc:0.27,pay:"Credit Card",ch:"Retail"},
+    {id:1099,date:"2023-02-24",rep:"David",region:"East",sales:8090.0,qty:35,cat:"Clothing",cust:"New",disc:0.14,pay:"Cash",ch:"Retail"},
+    {id:1099,date:"2023-05-11",rep:"Alice",region:"South",sales:3518.89,qty:48,cat:"Food",cust:"Returning",disc:0.19,pay:"Bank Transfer",ch:"Online"},
+    {id:1082,date:"2023-06-11",rep:"Alice",region:"North",sales:7041.58,qty:17,cat:"Furniture",cust:"Returning",disc:0.06,pay:"Cash",ch:"Retail"},
+    {id:1066,date:"2023-03-28",rep:"Charlie",region:"North",sales:7297.86,qty:7,cat:"Clothing",cust:"New",disc:0.2,pay:"Bank Transfer",ch:"Online"},
+    {id:1035,date:"2023-10-15",rep:"David",region:"North",sales:9476.2,qty:1,cat:"Furniture",cust:"New",disc:0.22,pay:"Credit Card",ch:"Online"},
+    {id:1068,date:"2023-09-04",rep:"Eve",region:"East",sales:3905.11,qty:14,cat:"Food",cust:"Returning",disc:0.03,pay:"Bank Transfer",ch:"Online"},
+    {id:1033,date:"2023-11-19",rep:"David",region:"North",sales:349.41,qty:37,cat:"Electronics",cust:"New",disc:0.17,pay:"Credit Card",ch:"Retail"},
+    {id:1020,date:"2023-09-06",rep:"Charlie",region:"East",sales:9705.55,qty:4,cat:"Clothing",cust:"New",disc:0.25,pay:"Bank Transfer",ch:"Retail"},
+    {id:1054,date:"2023-10-29",rep:"David",region:"West",sales:4025.88,qty:8,cat:"Clothing",cust:"Returning",disc:0.15,pay:"Cash",ch:"Retail"},
+    {id:1021,date:"2023-01-07",rep:"Bob",region:"North",sales:2971.45,qty:9,cat:"Furniture",cust:"New",disc:0.17,pay:"Bank Transfer",ch:"Online"},
+    {id:1064,date:"2023-05-31",rep:"David",region:"South",sales:2579.63,qty:8,cat:"Clothing",cust:"New",disc:0.03,pay:"Cash",ch:"Retail"},
+    {id:1004,date:"2023-07-07",rep:"Eve",region:"North",sales:6772.8,qty:35,cat:"Clothing",cust:"Returning",disc:0.09,pay:"Bank Transfer",ch:"Online"},
+    {id:1064,date:"2023-01-02",rep:"David",region:"South",sales:5533.7,qty:10,cat:"Electronics",cust:"Returning",disc:0.2,pay:"Credit Card",ch:"Online"},
+    {id:1017,date:"2023-07-16",rep:"Alice",region:"South",sales:3137.09,qty:18,cat:"Furniture",cust:"Returning",disc:0.22,pay:"Bank Transfer",ch:"Online"},
+    {id:1046,date:"2023-01-20",rep:"Eve",region:"East",sales:4104.82,qty:43,cat:"Clothing",cust:"New",disc:0.1,pay:"Bank Transfer",ch:"Retail"},
+    {id:1006,date:"2023-09-18",rep:"David",region:"West",sales:776.7,qty:45,cat:"Furniture",cust:"New",disc:0.29,pay:"Bank Transfer",ch:"Retail"},
+    {id:1053,date:"2023-12-21",rep:"Bob",region:"North",sales:660.2,qty:44,cat:"Furniture",cust:"Returning",disc:0.08,pay:"Credit Card",ch:"Online"},
+    {id:1063,date:"2023-07-21",rep:"Bob",region:"East",sales:6359.59,qty:32,cat:"Electronics",cust:"New",disc:0.22,pay:"Bank Transfer",ch:"Retail"},
+    {id:1048,date:"2023-10-20",rep:"Alice",region:"South",sales:9688.52,qty:6,cat:"Electronics",cust:"New",disc:0.03,pay:"Bank Transfer",ch:"Retail"},
+    {id:1042,date:"2023-05-26",rep:"Bob",region:"East",sales:848.28,qty:1,cat:"Electronics",cust:"New",disc:0.08,pay:"Credit Card",ch:"Retail"},
+    {id:1008,date:"2023-12-08",rep:"Alice",region:"South",sales:3197.78,qty:49,cat:"Electronics",cust:"New",disc:0.13,pay:"Cash",ch:"Online"},
+    {id:1087,date:"2023-05-14",rep:"Charlie",region:"West",sales:9472.66,qty:10,cat:"Electronics",cust:"New",disc:0.05,pay:"Credit Card",ch:"Online"},
+    {id:1098,date:"2023-04-08",rep:"Eve",region:"North",sales:9452.89,qty:5,cat:"Electronics",cust:"New",disc:0.1,pay:"Credit Card",ch:"Retail"},
+    {id:1063,date:"2023-06-22",rep:"Bob",region:"South",sales:5917.1,qty:25,cat:"Electronics",cust:"New",disc:0.22,pay:"Cash",ch:"Online"},
+    {id:1025,date:"2023-02-15",rep:"David",region:"South",sales:4140.7,qty:45,cat:"Clothing",cust:"New",disc:0.2,pay:"Bank Transfer",ch:"Retail"},
+    {id:1058,date:"2023-11-03",rep:"David",region:"West",sales:4050.45,qty:42,cat:"Clothing",cust:"Returning",disc:0.01,pay:"Cash",ch:"Retail"},
+    {id:1015,date:"2023-09-24",rep:"Bob",region:"East",sales:182.37,qty:35,cat:"Clothing",cust:"Returning",disc:0.27,pay:"Credit Card",ch:"Online"},
+    {id:1094,date:"2023-02-24",rep:"Bob",region:"West",sales:6171.59,qty:7,cat:"Furniture",cust:"Returning",disc:0.26,pay:"Bank Transfer",ch:"Retail"},
+    {id:1090,date:"2023-03-14",rep:"David",region:"East",sales:6761.43,qty:47,cat:"Furniture",cust:"New",disc:0.19,pay:"Cash",ch:"Retail"},
+    {id:1001,date:"2023-04-14",rep:"David",region:"East",sales:5488.11,qty:2,cat:"Electronics",cust:"New",disc:0.15,pay:"Bank Transfer",ch:"Online"},
+    {id:1061,date:"2023-04-18",rep:"Eve",region:"North",sales:3774.02,qty:47,cat:"Electronics",cust:"New",disc:0.06,pay:"Cash",ch:"Retail"},
+    {id:1064,date:"2023-06-21",rep:"Bob",region:"West",sales:9215.59,qty:46,cat:"Electronics",cust:"New",disc:0.04,pay:"Bank Transfer",ch:"Online"},
+    {id:1067,date:"2023-04-11",rep:"Bob",region:"East",sales:8963.93,qty:17,cat:"Food",cust:"New",disc:0.24,pay:"Bank Transfer",ch:"Retail"},
+    {id:1069,date:"2023-05-29",rep:"Alice",region:"North",sales:4494.8,qty:30,cat:"Electronics",cust:"New",disc:0.11,pay:"Bank Transfer",ch:"Retail"},
+    {id:1100,date:"2023-05-23",rep:"Bob",region:"West",sales:7667.96,qty:29,cat:"Food",cust:"Returning",disc:0.21,pay:"Cash",ch:"Retail"},
+    {id:1033,date:"2023-02-28",rep:"David",region:"West",sales:4155.74,qty:3,cat:"Clothing",cust:"Returning",disc:0.17,pay:"Cash",ch:"Online"},
+    {id:1069,date:"2023-10-15",rep:"Bob",region:"West",sales:1688.58,qty:46,cat:"Food",cust:"New",disc:0.13,pay:"Cash",ch:"Online"},
+    {id:1100,date:"2023-09-23",rep:"Charlie",region:"North",sales:797.87,qty:19,cat:"Electronics",cust:"New",disc:0.12,pay:"Cash",ch:"Retail"},
+    {id:1034,date:"2023-01-16",rep:"Alice",region:"North",sales:1937.9,qty:13,cat:"Furniture",cust:"New",disc:0.12,pay:"Credit Card",ch:"Retail"},
+    {id:1052,date:"2023-07-18",rep:"Eve",region:"South",sales:6675.77,qty:42,cat:"Electronics",cust:"New",disc:0.04,pay:"Cash",ch:"Retail"},
+    {id:1096,date:"2023-12-01",rep:"Bob",region:"East",sales:2962.96,qty:20,cat:"Furniture",cust:"Returning",disc:0.06,pay:"Bank Transfer",ch:"Online"},
+    {id:1092,date:"2023-03-23",rep:"Bob",region:"South",sales:7914.0,qty:18,cat:"Food",cust:"Returning",disc:0.2,pay:"Bank Transfer",ch:"Online"},
+    {id:1032,date:"2023-08-11",rep:"David",region:"East",sales:3147.18,qty:5,cat:"Food",cust:"New",disc:0.25,pay:"Bank Transfer",ch:"Online"},
+    {id:1050,date:"2023-06-01",rep:"Bob",region:"South",sales:5105.78,qty:23,cat:"Furniture",cust:"Returning",disc:0.04,pay:"Cash",ch:"Online"},
+    {id:1035,date:"2023-04-18",rep:"David",region:"South",sales:9417.1,qty:34,cat:"Food",cust:"Returning",disc:0.19,pay:"Cash",ch:"Online"},
+    {id:1043,date:"2023-10-20",rep:"Charlie",region:"South",sales:5081.01,qty:22,cat:"Food",cust:"Returning",disc:0.17,pay:"Bank Transfer",ch:"Retail"},
+    {id:1040,date:"2023-01-15",rep:"Charlie",region:"North",sales:8601.77,qty:19,cat:"Furniture",cust:"Returning",disc:0.09,pay:"Credit Card",ch:"Online"},
+    {id:1087,date:"2023-09-08",rep:"Charlie",region:"North",sales:119.72,qty:20,cat:"Clothing",cust:"New",disc:0.22,pay:"Cash",ch:"Online"},
+    {id:1034,date:"2023-10-29",rep:"David",region:"North",sales:8919.47,qty:34,cat:"Food",cust:"New",disc:0.12,pay:"Credit Card",ch:"Retail"},
+    {id:1029,date:"2023-07-04",rep:"Charlie",region:"North",sales:5240.32,qty:31,cat:"Furniture",cust:"New",disc:0.15,pay:"Cash",ch:"Online"},
+    {id:1036,date:"2023-09-29",rep:"Bob",region:"North",sales:6116.75,qty:7,cat:"Clothing",cust:"New",disc:0.22,pay:"Cash",ch:"Retail"},
+    {id:1073,date:"2023-12-06",rep:"Alice",region:"North",sales:2273.58,qty:31,cat:"Food",cust:"Returning",disc:0.25,pay:"Bank Transfer",ch:"Retail"},
+    {id:1024,date:"2023-03-06",rep:"Alice",region:"South",sales:9602.64,qty:35,cat:"Electronics",cust:"New",disc:0.08,pay:"Credit Card",ch:"Online"},
+    {id:1036,date:"2023-11-20",rep:"Alice",region:"East",sales:5454.96,qty:32,cat:"Clothing",cust:"New",disc:0.29,pay:"Credit Card",ch:"Retail"},
+    {id:1023,date:"2023-07-12",rep:"Alice",region:"North",sales:5051.12,qty:2,cat:"Food",cust:"New",disc:0.1,pay:"Credit Card",ch:"Retail"},
+    {id:1096,date:"2023-11-01",rep:"Bob",region:"South",sales:8718.22,qty:17,cat:"Food",cust:"Returning",disc:0.23,pay:"Bank Transfer",ch:"Retail"},
+    {id:1055,date:"2023-07-06",rep:"Eve",region:"South",sales:1242.41,qty:16,cat:"Clothing",cust:"Returning",disc:0.09,pay:"Bank Transfer",ch:"Online"},
+    {id:1089,date:"2023-03-03",rep:"Charlie",region:"North",sales:2122.73,qty:4,cat:"Furniture",cust:"Returning",disc:0.18,pay:"Bank Transfer",ch:"Online"},
+    {id:1019,date:"2023-07-18",rep:"Alice",region:"North",sales:7948.31,qty:12,cat:"Clothing",cust:"Returning",disc:0.19,pay:"Credit Card",ch:"Online"},
+    {id:1061,date:"2023-03-13",rep:"Bob",region:"South",sales:6321.42,qty:11,cat:"Clothing",cust:"Returning",disc:0.01,pay:"Bank Transfer",ch:"Retail"},
+    {id:1028,date:"2023-08-31",rep:"Eve",region:"North",sales:5403.0,qty:28,cat:"Furniture",cust:"New",disc:0.19,pay:"Credit Card",ch:"Online"},
+    {id:1025,date:"2023-09-19",rep:"Alice",region:"East",sales:8564.24,qty:26,cat:"Electronics",cust:"Returning",disc:0.11,pay:"Cash",ch:"Online"},
+    {id:1052,date:"2023-01-05",rep:"Bob",region:"North",sales:8837.34,qty:11,cat:"Clothing",cust:"New",disc:0.3,pay:"Credit Card",ch:"Retail"},
+    {id:1039,date:"2023-04-09",rep:"Alice",region:"North",sales:763.04,qty:3,cat:"Food",cust:"Returning",disc:0.27,pay:"Cash",ch:"Online"},
+    {id:1053,date:"2023-01-20",rep:"David",region:"West",sales:8785.77,qty:42,cat:"Furniture",cust:"New",disc:0.29,pay:"Cash",ch:"Online"},
+    {id:1095,date:"2023-03-03",rep:"Eve",region:"East",sales:6518.35,qty:16,cat:"Electronics",cust:"Returning",disc:0.05,pay:"Credit Card",ch:"Retail"},
+    {id:1005,date:"2023-05-25",rep:"Eve",region:"North",sales:833.64,qty:2,cat:"Clothing",cust:"Returning",disc:0.02,pay:"Bank Transfer",ch:"Retail"},
+    {id:1087,date:"2023-01-03",rep:"Charlie",region:"East",sales:8057.76,qty:20,cat:"Furniture",cust:"New",disc:0.24,pay:"Bank Transfer",ch:"Online"},
+    {id:1076,date:"2023-04-30",rep:"Eve",region:"West",sales:3279.51,qty:32,cat:"Clothing",cust:"Returning",disc:0.3,pay:"Cash",ch:"Retail"},
+    {id:1017,date:"2023-12-23",rep:"Alice",region:"East",sales:780.27,qty:33,cat:"Food",cust:"Returning",disc:0.08,pay:"Cash",ch:"Online"},
+    {id:1046,date:"2023-09-24",rep:"Charlie",region:"West",sales:4695.96,qty:41,cat:"Clothing",cust:"Returning",disc:0.27,pay:"Cash",ch:"Retail"},
+    {id:1027,date:"2023-07-14",rep:"Bob",region:"South",sales:6650.67,qty:22,cat:"Food",cust:"New",disc:0.07,pay:"Cash",ch:"Online"},
+    {id:1005,date:"2023-11-28",rep:"David",region:"West",sales:152.6,qty:43,cat:"Furniture",cust:"New",disc:0.08,pay:"Bank Transfer",ch:"Retail"},
+    {id:1086,date:"2023-05-04",rep:"Bob",region:"West",sales:7841.4,qty:25,cat:"Food",cust:"New",disc:0.08,pay:"Bank Transfer",ch:"Online"},
+    {id:1017,date:"2023-02-07",rep:"Charlie",region:"West",sales:7542.3,qty:2,cat:"Food",cust:"New",disc:0.24,pay:"Cash",ch:"Retail"},
+    {id:1071,date:"2023-11-24",rep:"Alice",region:"West",sales:8049.72,qty:12,cat:"Food",cust:"New",disc:0.18,pay:"Credit Card",ch:"Retail"},
+    {id:1061,date:"2023-03-22",rep:"Alice",region:"East",sales:8915.05,qty:34,cat:"Clothing",cust:"New",disc:0.2,pay:"Bank Transfer",ch:"Online"},
+    {id:1039,date:"2023-02-09",rep:"David",region:"South",sales:9091.46,qty:20,cat:"Food",cust:"Returning",disc:0.21,pay:"Bank Transfer",ch:"Retail"},
+    {id:1090,date:"2023-11-14",rep:"Bob",region:"East",sales:6575.91,qty:1,cat:"Clothing",cust:"Returning",disc:0.17,pay:"Cash",ch:"Online"},
+    {id:1013,date:"2023-02-25",rep:"Eve",region:"East",sales:4791.82,qty:31,cat:"Food",cust:"Returning",disc:0.21,pay:"Cash",ch:"Online"},
+    {id:1033,date:"2023-10-31",rep:"Eve",region:"East",sales:7982.79,qty:18,cat:"Furniture",cust:"Returning",disc:0.12,pay:"Cash",ch:"Retail"},
+    {id:1038,date:"2023-06-18",rep:"Eve",region:"West",sales:2792.27,qty:24,cat:"Clothing",cust:"New",disc:0.09,pay:"Bank Transfer",ch:"Online"},
+    {id:1058,date:"2023-12-29",rep:"David",region:"North",sales:2714.21,qty:34,cat:"Electronics",cust:"Returning",disc:0.08,pay:"Credit Card",ch:"Retail"},
+    {id:1061,date:"2023-12-22",rep:"Alice",region:"North",sales:1990.17,qty:45,cat:"Clothing",cust:"Returning",disc:0.18,pay:"Cash",ch:"Online"},
+    {id:1031,date:"2023-03-23",rep:"Eve",region:"East",sales:433.4,qty:32,cat:"Clothing",cust:"New",disc:0.16,pay:"Cash",ch:"Retail"},
+    {id:1003,date:"2023-07-25",rep:"Eve",region:"West",sales:5617.64,qty:5,cat:"Food",cust:"New",disc:0.28,pay:"Cash",ch:"Online"},
+    {id:1016,date:"2023-03-18",rep:"David",region:"South",sales:485.9,qty:4,cat:"Food",cust:"New",disc:0.27,pay:"Credit Card",ch:"Retail"},
+    {id:1072,date:"2023-08-21",rep:"Alice",region:"West",sales:8271.62,qty:12,cat:"Clothing",cust:"Returning",disc:0.03,pay:"Credit Card",ch:"Online"},
+    {id:1008,date:"2023-12-20",rep:"Charlie",region:"West",sales:765.83,qty:23,cat:"Clothing",cust:"Returning",disc:0.23,pay:"Bank Transfer",ch:"Retail"},
+    {id:1028,date:"2023-08-12",rep:"Charlie",region:"South",sales:2490.82,qty:41,cat:"Clothing",cust:"New",disc:0.12,pay:"Bank Transfer",ch:"Retail"},
+    {id:1100,date:"2023-12-01",rep:"Alice",region:"East",sales:1387.8,qty:34,cat:"Furniture",cust:"Returning",disc:0.0,pay:"Cash",ch:"Retail"},
+    {id:1063,date:"2023-10-05",rep:"Alice",region:"South",sales:7859.01,qty:27,cat:"Food",cust:"New",disc:0.06,pay:"Bank Transfer",ch:"Retail"},
+    {id:1005,date:"2023-09-08",rep:"Eve",region:"North",sales:7103.23,qty:9,cat:"Electronics",cust:"New",disc:0.07,pay:"Cash",ch:"Online"},
+    {id:1027,date:"2023-02-08",rep:"Alice",region:"West",sales:7179.49,qty:20,cat:"Electronics",cust:"New",disc:0.23,pay:"Credit Card",ch:"Retail"},
+    {id:1077,date:"2023-10-12",rep:"David",region:"South",sales:628.15,qty:23,cat:"Electronics",cust:"Returning",disc:0.29,pay:"Credit Card",ch:"Online"},
+    {id:1092,date:"2023-01-27",rep:"David",region:"West",sales:6939.75,qty:26,cat:"Furniture",cust:"New",disc:0.24,pay:"Cash",ch:"Online"},
+    {id:1081,date:"2023-07-14",rep:"Eve",region:"North",sales:7001.64,qty:16,cat:"Clothing",cust:"New",disc:0.01,pay:"Credit Card",ch:"Online"},
+    {id:1053,date:"2023-10-30",rep:"David",region:"North",sales:6033.09,qty:1,cat:"Food",cust:"New",disc:0.25,pay:"Cash",ch:"Online"},
+    {id:1074,date:"2023-05-27",rep:"Eve",region:"West",sales:6710.83,qty:2,cat:"Food",cust:"New",disc:0.2,pay:"Bank Transfer",ch:"Retail"},
+    {id:1083,date:"2023-02-27",rep:"Alice",region:"West",sales:1780.31,qty:20,cat:"Clothing",cust:"New",disc:0.01,pay:"Credit Card",ch:"Retail"},
+    {id:1017,date:"2023-01-15",rep:"Eve",region:"North",sales:289.53,qty:6,cat:"Furniture",cust:"Returning",disc:0.1,pay:"Bank Transfer",ch:"Retail"},
+    {id:1073,date:"2023-11-16",rep:"David",region:"South",sales:7026.43,qty:48,cat:"Clothing",cust:"New",disc:0.25,pay:"Credit Card",ch:"Online"},
+    {id:1045,date:"2023-01-12",rep:"Charlie",region:"South",sales:9613.11,qty:35,cat:"Furniture",cust:"New",disc:0.17,pay:"Bank Transfer",ch:"Online"},
+    {id:1095,date:"2023-04-03",rep:"Charlie",region:"East",sales:5873.59,qty:9,cat:"Food",cust:"New",disc:0.12,pay:"Cash",ch:"Retail"},
+    {id:1012,date:"2023-12-15",rep:"Bob",region:"West",sales:8821.63,qty:13,cat:"Electronics",cust:"Returning",disc:0.09,pay:"Bank Transfer",ch:"Retail"},
+    {id:1094,date:"2023-02-15",rep:"Charlie",region:"South",sales:8643.67,qty:47,cat:"Food",cust:"New",disc:0.2,pay:"Credit Card",ch:"Online"},
+    {id:1075,date:"2023-06-15",rep:"Eve",region:"North",sales:9736.49,qty:26,cat:"Furniture",cust:"New",disc:0.14,pay:"Credit Card",ch:"Online"},
+    {id:1050,date:"2023-03-05",rep:"Bob",region:"North",sales:9755.9,qty:20,cat:"Electronics",cust:"New",disc:0.24,pay:"Bank Transfer",ch:"Online"},
+    {id:1098,date:"2023-07-24",rep:"Alice",region:"South",sales:8188.04,qty:19,cat:"Electronics",cust:"Returning",disc:0.03,pay:"Credit Card",ch:"Online"},
+    {id:1082,date:"2023-07-28",rep:"Alice",region:"East",sales:8540.22,qty:48,cat:"Food",cust:"Returning",disc:0.3,pay:"Bank Transfer",ch:"Online"},
+    {id:1030,date:"2023-08-05",rep:"Bob",region:"West",sales:9733.46,qty:34,cat:"Electronics",cust:"Returning",disc:0.09,pay:"Cash",ch:"Online"},
+    {id:1029,date:"2023-08-02",rep:"Eve",region:"South",sales:2855.85,qty:46,cat:"Furniture",cust:"Returning",disc:0.3,pay:"Cash",ch:"Retail"},
+    {id:1004,date:"2023-06-28",rep:"Bob",region:"West",sales:8003.1,qty:38,cat:"Furniture",cust:"Returning",disc:0.16,pay:"Credit Card",ch:"Retail"},
+    {id:1069,date:"2023-03-27",rep:"David",region:"East",sales:719.39,qty:47,cat:"Electronics",cust:"New",disc:0.07,pay:"Cash",ch:"Online"},
+    {id:1034,date:"2023-04-02",rep:"Charlie",region:"West",sales:2184.02,qty:7,cat:"Electronics",cust:"Returning",disc:0.11,pay:"Cash",ch:"Online"},
+    {id:1075,date:"2023-01-02",rep:"David",region:"West",sales:919.09,qty:26,cat:"Electronics",cust:"New",disc:0.0,pay:"Credit Card",ch:"Online"},
+    {id:1055,date:"2023-10-16",rep:"David",region:"East",sales:3093.95,qty:46,cat:"Clothing",cust:"Returning",disc:0.03,pay:"Bank Transfer",ch:"Retail"},
+    {id:1080,date:"2023-08-21",rep:"David",region:"South",sales:5677.74,qty:12,cat:"Electronics",cust:"Returning",disc:0.12,pay:"Credit Card",ch:"Retail"},
+    {id:1027,date:"2023-04-16",rep:"Alice",region:"East",sales:8241.57,qty:7,cat:"Food",cust:"New",disc:0.03,pay:"Cash",ch:"Retail"},
+    {id:1050,date:"2023-11-13",rep:"Alice",region:"North",sales:4638.47,qty:28,cat:"Food",cust:"New",disc:0.22,pay:"Cash",ch:"Online"},
+    {id:1092,date:"2023-02-10",rep:"Bob",region:"East",sales:5426.42,qty:47,cat:"Furniture",cust:"Returning",disc:0.17,pay:"Cash",ch:"Retail"},
+    {id:1049,date:"2023-03-25",rep:"Eve",region:"East",sales:8611.97,qty:17,cat:"Electronics",cust:"Returning",disc:0.03,pay:"Credit Card",ch:"Online"},
+    {id:1090,date:"2023-11-10",rep:"Alice",region:"North",sales:3349.51,qty:16,cat:"Clothing",cust:"Returning",disc:0.0,pay:"Bank Transfer",ch:"Retail"},
+    {id:1073,date:"2023-05-07",rep:"David",region:"North",sales:1347.42,qty:29,cat:"Clothing",cust:"Returning",disc:0.22,pay:"Bank Transfer",ch:"Online"},
+    {id:1026,date:"2023-10-24",rep:"David",region:"East",sales:2044.55,qty:45,cat:"Food",cust:"Returning",disc:0.14,pay:"Credit Card",ch:"Online"},
+    {id:1063,date:"2023-03-28",rep:"Charlie",region:"South",sales:4947.28,qty:42,cat:"Food",cust:"Returning",disc:0.12,pay:"Bank Transfer",ch:"Retail"},
+    {id:1048,date:"2023-01-12",rep:"Charlie",region:"East",sales:6482.98,qty:47,cat:"Clothing",cust:"New",disc:0.24,pay:"Cash",ch:"Retail"},
+    {id:1056,date:"2023-04-29",rep:"Charlie",region:"North",sales:8274.54,qty:10,cat:"Clothing",cust:"Returning",disc:0.15,pay:"Bank Transfer",ch:"Online"},
+    {id:1003,date:"2023-05-11",rep:"Charlie",region:"North",sales:6760.37,qty:26,cat:"Electronics",cust:"New",disc:0.19,pay:"Credit Card",ch:"Online"},
+    {id:1023,date:"2023-07-21",rep:"Eve",region:"North",sales:2282.99,qty:4,cat:"Clothing",cust:"Returning",disc:0.05,pay:"Bank Transfer",ch:"Retail"},
+    {id:1099,date:"2023-04-03",rep:"Alice",region:"North",sales:2571.72,qty:30,cat:"Furniture",cust:"New",disc:0.18,pay:"Bank Transfer",ch:"Retail"},
+    {id:1015,date:"2023-07-26",rep:"David",region:"North",sales:2706.15,qty:9,cat:"Electronics",cust:"Returning",disc:0.05,pay:"Bank Transfer",ch:"Online"},
+    {id:1017,date:"2023-01-24",rep:"Eve",region:"North",sales:4637.4,qty:27,cat:"Electronics",cust:"Returning",disc:0.27,pay:"Credit Card",ch:"Online"},
+    {id:1086,date:"2023-10-20",rep:"David",region:"South",sales:3577.07,qty:32,cat:"Furniture",cust:"Returning",disc:0.2,pay:"Credit Card",ch:"Retail"},
+    {id:1025,date:"2023-12-30",rep:"David",region:"West",sales:9215.32,qty:28,cat:"Electronics",cust:"New",disc:0.13,pay:"Credit Card",ch:"Retail"},
+    {id:1010,date:"2023-04-15",rep:"Charlie",region:"North",sales:4733.88,qty:4,cat:"Food",cust:"Returning",disc:0.29,pay:"Cash",ch:"Online"},
+    {id:1100,date:"2023-12-20",rep:"David",region:"West",sales:1629.47,qty:39,cat:"Electronics",cust:"New",disc:0.01,pay:"Bank Transfer",ch:"Online"}
+  ];
+
+  // ── Palette ──────────────────────────────────────────────────────
+  const C   = {blue:"#3b82f6",violet:"#7c3aed",emerald:"#10b981",orange:"#f97316",rose:"#f43f5e",sky:"#0ea5e9",amber:"#f59e0b",teal:"#14b8a6",indigo:"#6366f1",lime:"#84cc16"};
+  const PAL = Object.values(C);
+
+  // ── State ────────────────────────────────────────────────────────
+  let rawData = RAW;
+  let charts  = {};
+
+  // ── Formatters ───────────────────────────────────────────────────
+  const $cur = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
+  const $num = n => new Intl.NumberFormat("en-US").format(n);
+  const $pct = n => (n*100).toFixed(1)+"%";
+
+  // ── Aggregation ──────────────────────────────────────────────────
+  function aggSum(rows, keyFn, val) {
+    const m = {};
+    rows.forEach(r => { const k = typeof keyFn==="function"?keyFn(r):r[keyFn]; m[k]=(m[k]||0)+r[val]; });
+    const s = Object.entries(m).sort((a,b)=>b[1]-a[1]);
+    return { labels:s.map(([k])=>k), values:s.map(([,v])=>v) };
+  }
+  function aggCount(rows, keyFn) {
+    const m = {};
+    rows.forEach(r => { const k = typeof keyFn==="function"?keyFn(r):r[keyFn]; m[k]=(m[k]||0)+1; });
+    return { labels:Object.keys(m), values:Object.values(m) };
+  }
+
+  // ── Filters ──────────────────────────────────────────────────────
+  function getFilters() {
+    return {
+      region:   document.getElementById("filter-region").value,
+      category: document.getElementById("filter-category").value,
+      customer: document.getElementById("filter-customer").value,
+      channel:  document.getElementById("filter-channel").value
+    };
+  }
+  function applyFilters(f) {
+    return rawData.filter(r =>
+      (f.region==="all"   || r.region===f.region) &&
+      (f.category==="all" || r.cat===f.category) &&
+      (f.customer==="all" || r.cust===f.customer) &&
+      (f.channel==="all"  || r.ch===f.channel)
+    );
+  }
+  function populateFilters() {
+    [
+      ["filter-region",   r=>r.region],
+      ["filter-category", r=>r.cat],
+      ["filter-customer", r=>r.cust],
+      ["filter-channel",  r=>r.ch]
+    ].forEach(([id, fn]) => {
+      const sel = document.getElementById(id);
+      [...new Set(rawData.map(fn))].sort().forEach(v => {
+        const o = document.createElement("option");
+        o.value = o.textContent = v;
+        sel.appendChild(o);
+      });
+    });
+  }
+
+  // ── KPI ──────────────────────────────────────────────────────────
+  function updateKPIs(data) {
+    document.getElementById("kpi-revenue").textContent      = $cur(data.reduce((s,r)=>s+r.sales,0));
+    document.getElementById("kpi-transactions").textContent = $num(data.length);
+    document.getElementById("kpi-quantity").textContent     = $num(data.reduce((s,r)=>s+r.qty,0));
+    document.getElementById("kpi-discount").textContent     = $pct(data.length ? data.reduce((s,r)=>s+r.disc,0)/data.length : 0);
+  }
+
+  // ── Chart factory ────────────────────────────────────────────────
+  function draw(id, cfg) {
+    if (charts[id]) { charts[id].destroy(); }
+    const canvas = document.getElementById(id);
+    if (!canvas) { console.warn("Canvas not found:", id); return; }
+    charts[id] = new Chart(canvas.getContext("2d"), cfg);
+  }
+
+  // ── Charts ───────────────────────────────────────────────────────
+  function chartTrend(data) {
+    const m = {};
+    data.forEach(r => { const k = r.date.slice(0,7); m[k] = (m[k]||0) + r.sales; });
+    const s = Object.entries(m).sort(([a],[b]) => a.localeCompare(b));
+    draw("chart-trend", {
+      type:"line",
+      data:{
+        labels: s.map(([k]) => { const [y,mo]=k.split("-"); return new Date(+y,+mo-1).toLocaleString("en-US",{month:"short",year:"2-digit"}); }),
+        datasets:[{label:"Revenue",data:s.map(([,v])=>v),borderColor:C.blue,backgroundColor:"rgba(59,130,246,.1)",borderWidth:2.5,pointRadius:4,pointHoverRadius:6,fill:true,tension:0.4}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>" "+$cur(ctx.parsed.y)}}},
+        scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>"$"+(v/1000).toFixed(0)+"k"}}}
+      }
+    });
+  }
+
+  function barH(id, data, keyFn, valKey, fmtX) {
+    const {labels,values} = aggSum(data, keyFn, valKey);
+    draw(id, {
+      type:"bar",
+      data:{labels,datasets:[{data:values,backgroundColor:PAL.slice(0,labels.length),borderRadius:6}]},
+      options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>" "+(fmtX||$cur)(ctx.parsed.x)}}},
+        scales:{x:{beginAtZero:true,ticks:{callback:v=>(fmtX||$cur)(v)}},y:{grid:{display:false}}}
+      }
+    });
+  }
+
+  // Polar Area chart — digunakan untuk Revenue per Region
+  function polarArea(id, data, keyFn, valKey) {
+    const {labels,values} = aggSum(data, keyFn, valKey);
+    // Warna semi-transparan agar ring polar tidak terlalu berat
+    const bg     = PAL.slice(0, labels.length).map(c => c + "cc");  // hex + alpha ~80%
+    const border = PAL.slice(0, labels.length);
+    draw(id, {
+      type: "polarArea",
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: bg,
+          borderColor: border,
+          borderWidth: 2,
+          hoverBackgroundColor: border.map(c => c + "ee"),
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { padding: 12, font: { size: 11 }, boxWidth: 12 }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ${$cur(ctx.parsed.r)}`
+            }
+          }
+        },
+        scales: {
+          r: {
+            ticks: {
+              display: false   // sembunyikan label cincin agar bersih
+            },
+            grid: {
+              color: "rgba(0,0,0,0.06)"
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function barV(id, data, keyFn, valKey, fmtY) {
+    const {labels,values} = aggSum(data, keyFn, valKey);
+    draw(id, {
+      type:"bar",
+      data:{labels,datasets:[{data:values,backgroundColor:PAL.slice(0,labels.length),borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>" "+(fmtY||$cur)(ctx.parsed.y)}}},
+        scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>(fmtY||$cur)(v)}}}
+      }
+    });
+  }
+
+  function donut(id, data, keyFn, colors) {
+    const {labels,values} = aggCount(data, keyFn);
+    draw(id, {
+      type:"doughnut",
+      data:{labels,datasets:[{data:values,backgroundColor:colors,hoverOffset:8,borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:"62%",
+        plugins:{legend:{position:"bottom",labels:{padding:12,font:{size:11}}},
+          tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}`}}}
+      }
+    });
+  }
+
+  function chartScatter(data) {
+    draw("chart-scatter", {
+      type:"scatter",
+      data:{datasets:[{label:"Transaksi",data:data.map(r=>({x:+(r.disc*100).toFixed(1),y:+r.sales.toFixed(2)})),backgroundColor:"rgba(99,102,241,.5)",pointRadius:5,pointHoverRadius:7}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Discount:${ctx.parsed.x}% | Sales:${$cur(ctx.parsed.y)}`}}},
+        scales:{
+          x:{title:{display:true,text:"Discount (%)"},ticks:{callback:v=>v+"%"}},
+          y:{title:{display:true,text:"Sales Amount (USD)"},ticks:{callback:v=>"$"+(v/1000).toFixed(0)+"k"}}
+        }
+      }
+    });
+  }
+
+  function chartTop10(data) {
+    const top = [...data].sort((a,b)=>b.sales-a.sales).slice(0,10);
+    draw("chart-top10", {
+      type:"bar",
+      data:{
+        labels:top.map(r=>`ID ${r.id} · ${r.rep} (${r.region})`),
+        datasets:[{data:top.map(r=>r.sales),backgroundColor:PAL.slice(0,10),borderRadius:6}]
+      },
+      options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>" "+$cur(ctx.parsed.x)}}},
+        scales:{x:{beginAtZero:true,ticks:{callback:v=>"$"+(v/1000).toFixed(1)+"k"}},y:{grid:{display:false}}}
+      }
+    });
+  }
+
+  // ── Render all ───────────────────────────────────────────────────
+  function renderAll() {
+    const data = applyFilters(getFilters());
+    updateKPIs(data);
+    chartTrend(data);
+    polarArea("chart-region", data, r=>r.region, "sales");
+    barV("chart-category",    data, r=>r.cat,    "sales");
+    barH("chart-salesrep",    data, r=>r.rep,    "sales");
+    donut("chart-customer",   data, r=>r.cust,   [C.blue, C.emerald]);
+    donut("chart-payment",    data, r=>r.pay,    [C.violet, C.orange, C.sky]);
+    donut("chart-channel",    data, r=>r.ch,     [C.teal, C.rose]);
+    chartScatter(data);
+    chartTop10(data);
+    barV("chart-qty-category", data, r=>r.cat, "qty", v=>$num(v)+" units");
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────
+  (function init() {
+    const ts = new Date().toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
+    document.getElementById("last-updated").textContent = RAW.length+" records · "+ts;
+
+    populateFilters();
+
+    ["filter-region","filter-category","filter-customer","filter-channel"]
+      .forEach(id => document.getElementById(id).addEventListener("change", renderAll));
+
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      ["filter-region","filter-category","filter-customer","filter-channel"]
+        .forEach(id => { document.getElementById(id).value = "all"; });
+      renderAll();
+    });
+
+    renderAll();
+  })();
+  </script>
+</body>
+</html>
